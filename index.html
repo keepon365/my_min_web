@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的第一个炫酷网页</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0d0d1a; /* 深邃的夜空背景 */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            z-index: 2;
+            pointer-events: none; /* 让鼠标穿透文字，不阻挡粒子效果 */
+            user-select: none;
+        }
+
+        .content h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: pulse 3s infinite alternate;
+        }
+
+        .content p {
+            font-size: 1.2rem;
+            color: #a0a0b0;
+            letter-spacing: 2px;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.7; transform: scale(0.98); }
+            100% { opacity: 1; transform: scale(1.02); }
+        }
+    </style>
+</head>
+<body>
+    <!-- 中间的欢迎文字 -->
+    <div class="content">
+        <h1>Hello World!</h1>
+        <p>移动鼠标或点击屏幕试试</p>
+    </div>
+
+    <!-- 用于绘制特效的画布 -->
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // 设置画布大小铺满屏幕
+        let width, height;
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 存储所有粒子的数组
+        let particles = [];
+
+        // 粒子类
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                // 随机散开速度
+                this.vx = (Math.random() - 0.5) * 10;
+                this.vy = (Math.random() - 0.5) * 10;
+                this.size = Math.random() * 3 + 1;
+                // 随机生成 HSL 颜色
+                this.color = `hsl(${Math.random() * 360}, 100%, 60%)`;
+                this.life = 1; // 寿命（透明度）
+                this.decay = Math.random() * 0.02 + 0.015; // 消散速度
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.1; // 模拟重力
+                this.vx *= 0.98; // 空气阻力
+                this.life -= this.decay;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.life; // 根据寿命设置透明度
+                ctx.fill();
+            }
+        }
+
+        // 动画主循环
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            ctx.globalCompositeOperation = 'lighter'; // 让粒子叠加发光
+
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+
+                // 如果粒子完全透明，就移除它
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                    i--;
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        // 鼠标移动事件
+        window.addEventListener('mousemove', (e) => {
+            // 每次移动生成 2 个粒子
+            for (let i = 0; i < 2; i++) {
+                particles.push(new Particle(e.clientX, e.clientY));
+            }
+        });
+
+        // 鼠标点击事件（爆炸效果）
+        window.addEventListener('click', (e) => {
+            for (let i = 0; i < 50; i++) {
+                particles.push(new Particle(e.clientX, e.clientY));
+            }
+        });
+
+        // 启动动画
+        animate();
+    </script>
+</body>
+</html>
