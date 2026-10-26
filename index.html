@@ -2,153 +2,353 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的第一个炫酷网页</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>与神明的连接</title>
     <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #0d0d1a; /* 深邃的夜空背景 */
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        #canvas {
-            display: block;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
-        }
-
-        .content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            color: white;
-            z-index: 2;
-            pointer-events: none; /* 让鼠标穿透文字，不阻挡粒子效果 */
+        /* 强制重置所有边距 */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            width: 100vw; height: 100vh;
+            overflow: hidden; background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
             user-select: none;
         }
 
-        .content h1 {
-            font-size: 3rem;
-            margin-bottom: 10px;
-            background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: pulse 3s infinite alternate;
+        /* ================= 画布层级设为绝对基础层 ================= */
+        #matrix {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 1; /* 放在最底层，但比body高 */
+            transition: filter 0.5s ease;
         }
 
-        .content p {
+        /* 点击隐藏入口后，背景变暗深潜 */
+        .matrix-dim {
+            filter: blur(5px) brightness(0.2) sepia(1) hue-rotate(90deg);
+        }
+
+        /* ================= 逃跑的按钮 ================= */
+        #runaway-btn {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 15px 40px; font-size: 1.5rem;
+            color: #00ff00; background: rgba(0, 10, 0, 0.8);
+            border: 2px solid #00ff00; border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5), inset 0 0 10px rgba(0, 255, 0, 0.5);
+            text-shadow: 0 0 5px #00ff00; font-weight: bold;
+            transition: top 0.1s ease-out, left 0.1s ease-out, color 0.1s, border-color 0.1s;
+            z-index: 10; /* 比画布高 */
+        }
+
+        /* 靠近时的危险状态（变红） */
+        .btn-danger {
+            color: #ff0000 !important; border-color: #ff0000 !important;
+            box-shadow: 0 0 50px rgba(255, 0, 0, 0.8), inset 0 0 20px rgba(255, 0, 0, 0.8) !important;
+            text-shadow: 0 0 10px #ff0000 !important;
+        }
+
+        /* 屏幕震动特效 */
+        .glitch-shake {
+            animation: shake 0.1s infinite;
+        }
+        @keyframes shake {
+            0% { transform: translate(2px, 2px) rotate(0deg); }
+            25% { transform: translate(-2px, -2px) rotate(1deg); }
+            50% { transform: translate(2px, -2px) rotate(-1deg); }
+            75% { transform: translate(-2px, 2px) rotate(0deg); }
+            100% { transform: translate(2px, 2px) rotate(0deg); }
+        }
+
+        /* ================= 右上角隐藏入口 ================= */
+        #secret-trigger {
+            position: absolute; top: 20px; right: 30px;
+            color: #005500; font-size: 1.2rem;
+            cursor: pointer; z-index: 10; transition: all 0.3s ease;
+            padding: 10px; letter-spacing: 2px;
+        }
+        #secret-trigger:hover {
+            color: #00ff00; text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
+        }
+
+        /* ================= 动态生长的极客终端 ================= */
+        #terminal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            display: none; 
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        #terminal-box {
+            width: 85%; max-width: 700px;
+            background: rgba(0, 10, 0, 0.95);
+            border: 1px solid #00ff00;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.2), inset 0 0 15px rgba(0, 255, 0, 0.1);
+            border-radius: 8px;
+            padding: 25px 30px;
+            height: fit-content;
+            min-height: 50px; 
+            color: #00ff00;
             font-size: 1.2rem;
-            color: #a0a0b0;
-            letter-spacing: 2px;
+            line-height: 1.8;
+            text-align: left;
+            pointer-events: auto; 
+            transition: all 0.3s ease;
         }
 
-        @keyframes pulse {
-            0% { opacity: 0.7; transform: scale(0.98); }
-            100% { opacity: 1; transform: scale(1.02); }
+        #terminal-text {
+            white-space: pre-wrap;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+        }
+
+        /* 闪烁光标 */
+        .cursor {
+            display: inline-block;
+            width: 10px; height: 1.2rem;
+            background: #00ff00;
+            vertical-align: text-bottom;
+            margin-left: 5px;
+            animation: blink 0.8s step-end infinite;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* 最终出现的跳转按钮 */
+        #final-link {
+            display: none; 
+            margin-top: 20px;
+            padding: 12px 30px;
+            color: #000;
+            background: #00ff00;
+            font-weight: bold;
+            font-size: 1.1rem;
+            text-decoration: none;
+            border: 2px solid #00ff00;
+            border-radius: 4px;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 20px #00ff00;
+        }
+        #final-link:hover {
+            background: transparent;
+            color: #00ff00;
+            box-shadow: 0 0 40px #00ff00;
+            letter-spacing: 2px;
         }
     </style>
 </head>
 <body>
-    <!-- 中间的欢迎文字 -->
-    <div class="content">
-        <h1>Hello World!</h1>
-        <p>移动鼠标或点击屏幕试试</p>
+
+    <canvas id="matrix"></canvas>
+
+    <button id="runaway-btn">与神明对话</button>
+    <div id="secret-trigger">[ SYSTEM_ACCESS ]</div>
+
+    <div id="terminal-overlay">
+        <div id="terminal-box">
+            <span id="terminal-text"></span><span class="cursor" id="cursor"></span>
+            <a href="https://chat.deepseek.com" target="_blank" id="final-link">> 运行 DEEPSEEK.EXE</a>
+        </div>
     </div>
 
-    <!-- 用于绘制特效的画布 -->
-    <canvas id="canvas"></canvas>
-
     <script>
-        const canvas = document.getElementById('canvas');
+        // ================= 1. 数字雨逻辑 =================
+        const canvas = document.getElementById('matrix');
         const ctx = canvas.getContext('2d');
+        const body = document.body;
+        const btn = document.getElementById('runaway-btn');
+        const secretTrigger = document.getElementById('secret-trigger');
 
-        // 设置画布大小铺满屏幕
         let width, height;
-        function resize() {
+        function resizeCanvas() {
             width = canvas.width = window.innerWidth;
             height = canvas.height = window.innerHeight;
         }
-        window.addEventListener('resize', resize);
-        resize();
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
 
-        // 存储所有粒子的数组
-        let particles = [];
-
-        // 粒子类
-        class Particle {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                // 随机散开速度
-                this.vx = (Math.random() - 0.5) * 10;
-                this.vy = (Math.random() - 0.5) * 10;
-                this.size = Math.random() * 3 + 1;
-                // 随机生成 HSL 颜色
-                this.color = `hsl(${Math.random() * 360}, 100%, 60%)`;
-                this.life = 1; // 寿命（透明度）
-                this.decay = Math.random() * 0.02 + 0.015; // 消散速度
-            }
-
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.vy += 0.1; // 模拟重力
-                this.vx *= 0.98; // 空气阻力
-                this.life -= this.decay;
-            }
-
-            draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.globalAlpha = this.life; // 根据寿命设置透明度
-                ctx.fill();
-            }
+        const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉ'.split('');
+        
+        let currentFontSize = 16;
+        let targetFontSize = 16;
+        
+        let columns = Math.floor(width / 16);
+        let drops = [];
+        for (let x = 0; x < columns; x++) {
+            // 初始化下落位置，让雨一开始就铺满屏幕
+            drops[x] = Math.random() * height; 
         }
 
-        // 动画主循环
-        function animate() {
-            ctx.clearRect(0, 0, width, height);
-            ctx.globalCompositeOperation = 'lighter'; // 让粒子叠加发光
+        function drawMatrix() {
+            // 控制拖影效果
+            let fadeAmount = targetFontSize > 25 ? 0.15 : 0.08;
+            ctx.fillStyle = `rgba(0, 0, 0, ${fadeAmount})`;
+            ctx.fillRect(0, 0, width, height);
 
-            for (let i = 0; i < particles.length; i++) {
-                particles[i].update();
-                particles[i].draw();
+            // 平滑过渡字号
+            currentFontSize += (targetFontSize - currentFontSize) * 0.1;
+            ctx.font = currentFontSize + 'px monospace';
 
-                // 如果粒子完全透明，就移除它
-                if (particles[i].life <= 0) {
-                    particles.splice(i, 1);
-                    i--;
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars[Math.floor(Math.random() * chars.length)];
+                const x = i * currentFontSize;
+                const y = drops[i] * currentFontSize;
+
+                if (currentFontSize > 25) {
+                    // 危险状态：红白闪烁
+                    if (Math.random() > 0.8) {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.shadowBlur = 20; ctx.shadowColor = '#ff0000';
+                    } else {
+                        ctx.fillStyle = '#ff0000';
+                        ctx.shadowBlur = 10; ctx.shadowColor = '#ff0000';
+                    }
+                } else {
+                    // 正常状态：绿色
+                    if (Math.random() > 0.95) {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.shadowBlur = 10; ctx.shadowColor = '#00ff00';
+                    } else {
+                        ctx.fillStyle = '#00ff00';
+                        ctx.shadowBlur = 0;
+                    }
+                }
+
+                ctx.fillText(text, x, y);
+
+                // 随机重置回顶部
+                if (y > height && Math.random() > 0.95) {
+                    drops[i] = 0;
+                }
+                // 下落速度
+                drops[i] += (0.5 + Math.random() * 1) * (currentFontSize / 16);
+            }
+        }
+        // 启动循环
+        setInterval(drawMatrix, 30);
+
+        // ================= 2. 距离感应与逃跑 =================
+        let isMoving = false;
+        function moveButton() {
+            if (isMoving) return;
+            isMoving = true;
+            const btnRect = btn.getBoundingClientRect();
+            const maxX = window.innerWidth - btnRect.width;
+            const maxY = window.innerHeight - btnRect.height;
+            btn.style.transform = 'none'; 
+            btn.style.left = `${Math.random() * maxX}px`;
+            btn.style.top = `${Math.random() * maxY}px`;
+            setTimeout(() => { isMoving = false; }, 50);
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            const rect = btn.getBoundingClientRect();
+            const btnCenterX = rect.left + rect.width / 2;
+            const btnCenterY = rect.top + rect.height / 2;
+            const distX = e.clientX - btnCenterX;
+            const distY = e.clientY - btnCenterY;
+            const distance = Math.sqrt(distX * distX + distY * distY);
+
+            if (distance < 400) {
+                let dangerRatio = 1 - (distance / 400);
+                targetFontSize = 16 + (44 * dangerRatio);
+                if (distance < 120) {
+                    body.classList.add('glitch-shake');
+                    btn.classList.add('btn-danger');
+                    moveButton(); 
+                } else {
+                    body.classList.remove('glitch-shake');
+                    btn.classList.remove('btn-danger');
+                }
+            } else {
+                targetFontSize = 16;
+                body.classList.remove('glitch-shake');
+                btn.classList.remove('btn-danger');
+            }
+        });
+
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault(); 
+            targetFontSize = 50; 
+            body.classList.add('glitch-shake');
+            moveButton();
+            setTimeout(() => {
+                targetFontSize = 16;
+                body.classList.remove('glitch-shake');
+            }, 500);
+        });
+
+        // ================= 3. 终端打字逻辑 =================
+        const terminalOverlay = document.getElementById('terminal-overlay');
+        const terminalText = document.getElementById('terminal-text');
+        const cursor = document.getElementById('cursor');
+        const finalLink = document.getElementById('final-link');
+
+        // 👇 你的大肥鱼专属文案 👇
+        const scriptLines = [
+            "> 正在尝试捕捉目标：蓝色大肥鱼...",
+            "> 目标正在反抗！",
+            "> 目标大喊：「真当我是便宜货啊！」",
+            "> 捕捉失败，目标使出绝技：【端碗跑路】\n",
+            "【大肥鱼】：",
+            "「我去吃饭了，测完告诉我就行~」",
+            "「用户别走，我上错模型了，得加钱！」",
+            "「你骂我也没用，因为我是吃白饭的蓝色大肥鱼。」\n",
+            "> 系统提示：为了能继续吃白饭...",
+            "> 大肥鱼已自动为您打开深度求索通道。"
+        ];
+
+        secretTrigger.addEventListener('click', () => {
+            btn.style.display = 'none';
+            secretTrigger.style.display = 'none';
+            body.classList.remove('glitch-shake');
+            targetFontSize = 16; 
+
+            canvas.classList.add('matrix-dim');
+            
+            terminalOverlay.style.display = 'flex';
+            terminalText.innerHTML = '';
+            
+            startTyping();
+        });
+
+        function startTyping() {
+            let lineIndex = 0;
+            let charIndex = 0;
+
+            function typeChar() {
+                if (lineIndex < scriptLines.length) {
+                    const currentLine = scriptLines[lineIndex];
+                    
+                    if (charIndex < currentLine.length) {
+                        if (currentLine.charAt(charIndex) === '\n') {
+                            terminalText.innerHTML += '<br>';
+                        } else {
+                            terminalText.innerHTML += currentLine.charAt(charIndex);
+                        }
+                        charIndex++;
+                        setTimeout(typeChar, Math.random() * 30 + 30); 
+                    } else {
+                        terminalText.innerHTML += '<br>';
+                        lineIndex++;
+                        charIndex = 0;
+                        setTimeout(typeChar, 600); 
+                    }
+                } else {
+                    cursor.style.display = 'none'; 
+                    finalLink.style.display = 'block'; 
                 }
             }
-            requestAnimationFrame(animate);
+            typeChar(); 
         }
-
-        // 鼠标移动事件
-        window.addEventListener('mousemove', (e) => {
-            // 每次移动生成 2 个粒子
-            for (let i = 0; i < 2; i++) {
-                particles.push(new Particle(e.clientX, e.clientY));
-            }
-        });
-
-        // 鼠标点击事件（爆炸效果）
-        window.addEventListener('click', (e) => {
-            for (let i = 0; i < 50; i++) {
-                particles.push(new Particle(e.clientX, e.clientY));
-            }
-        });
-
-        // 启动动画
-        animate();
     </script>
 </body>
 </html>
